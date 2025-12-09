@@ -39,60 +39,35 @@ fn part_two(lines: Lines) -> u64 {
     let lenghts: Vec<_> = operations
         .split(&['*', '+'])
         .map(|s| s.len() + 1)
+        // The first len is 0 because the first operation char is at pos 0
         .skip(1)
         .collect();
 
     let operations: Vec<&str> = operations.split_whitespace().collect();
-    // println!("{split:?} {}", split[0].len());
 
-    let mut total = 0;
-    let mut start = 0;
-    for (op, offset) in operations.iter().zip(lenghts) {
-        // Only four lines in the input
-        let a = &split[0][start..start + offset];
-        let b = &split[1][start..start + offset];
-        let c = &split[2][start..start + offset];
-        let d = &split[3][start..start + offset];
+    let (total, _) = operations
+        .iter()
+        .zip(lenghts)
+        // Init total and start of string slice
+        .fold((0, 0), |(total, start), (op, offset)| {
+            let nums = (0..offset).filter_map(|i| {
+                let idx = start + i;
+                let n: String = split.iter().map(|s| &s[idx..idx + 1]).collect();
 
-        print!("{offset} |{a}|{b}|{c}| => ");
-
-        // TODO: make it work with variable sized splits
-        // let numbers: Vec<_> = split
-        //     .iter()
-        //     .map(|line| &line[start..start + offset])
-        //     .collect();
-
-        // |123 |64 |
-        // | 45 |23 |
-        // |  6 |314|
-        // let nums = numbers.iter().map(|n| n.chars().rev().collect());
-
-        // TODO: make it work with variable sized splits
-        let nums: Vec<_> = a
-            .chars()
-            .rev()
-            .zip(b.chars().rev())
-            .zip(c.chars().rev())
-            .zip(d.chars().rev())
-            .filter_map(|(((a_, b_), c_), d_)| {
-                let s = format!("{a_}{b_}{c_}{d_}");
-                match s.trim() {
+                match n.trim() {
                     "" => None,
                     v => Some(v.parse::<u64>().unwrap()),
                 }
-            })
-            .collect();
+            });
 
-        println!("{nums:?}");
+            let result = match *op {
+                "+" => nums.sum::<u64>(),
+                "*" => nums.product::<u64>(),
+                _ => unreachable!(),
+            };
 
-        match *op {
-            "+" => total += nums.iter().sum::<u64>(),
-            "*" => total += nums.iter().product::<u64>(),
-            _ => unreachable!(),
-        };
-
-        start += offset;
-    }
+            (total + result, start + offset)
+        });
 
     total
 }
