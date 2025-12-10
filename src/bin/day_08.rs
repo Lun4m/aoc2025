@@ -12,6 +12,10 @@ impl Point {
             .sum::<f32>()
             .sqrt()
     }
+
+    fn x(&self) -> u64 {
+        self.0[0] as u64
+    }
 }
 
 fn parse_points(input: &str) -> Vec<Point> {
@@ -118,30 +122,30 @@ fn part_two(points: &[Point], dists: &[PointPair]) -> u64 {
     let &(i, j, _) = dists.first().unwrap();
     let mut circuits = vec![BTreeSet::from([i, j])];
 
-    for (i, j, _) in dists.iter().skip(1) {
+    for &(i, j, _) in dists.iter().skip(1) {
         let mut inserted = false;
 
         for circuit in circuits.iter_mut() {
-            if circuit.contains(i) {
-                circuit.insert(*j);
+            if circuit.contains(&i) {
+                circuit.insert(j);
                 inserted = true;
-            } else if circuit.contains(j) {
-                circuit.insert(*i);
+            } else if circuit.contains(&j) {
+                circuit.insert(i);
                 inserted = true;
             }
         }
 
         if !inserted {
-            circuits.push(BTreeSet::from([*i, *j]));
+            circuits.push(BTreeSet::from([i, j]));
         } else {
             circuits = merge_circuits(circuits);
         }
 
         // Check if all boxes are connected
         if circuits.first().unwrap().len() == points.len() {
-            let x_0 = points[*i].0[0] as u64;
-            let x_1 = points[*j].0[0] as u64;
-            return x_0 * x_1;
+            let xi = points[i].x();
+            let xj = points[j].x();
+            return xi * xj;
         }
     }
 
