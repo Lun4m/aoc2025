@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fs::read_to_string};
+use std::{collections::BTreeSet, fs::read_to_string};
 
 type PointPair = (usize, usize, f32);
 struct Point([f32; 3]);
@@ -31,7 +31,6 @@ fn parse_points(input: &str) -> Vec<Point> {
 }
 
 fn compute_distances(points: &[Point]) -> Vec<PointPair> {
-    // Compute distances
     let mut dists = Vec::with_capacity(points.len() - 1);
     for i in 0..points.len() {
         for j in i + 1..points.len() {
@@ -46,7 +45,7 @@ fn compute_distances(points: &[Point]) -> Vec<PointPair> {
     dists
 }
 
-fn merge_circuits(mut sets: Vec<HashSet<usize>>) -> Vec<HashSet<usize>> {
+fn merge_circuits(mut sets: Vec<BTreeSet<usize>>) -> Vec<BTreeSet<usize>> {
     let mut skip = Vec::new();
 
     for i in 0..sets.len() {
@@ -59,7 +58,7 @@ fn merge_circuits(mut sets: Vec<HashSet<usize>>) -> Vec<HashSet<usize>> {
                 continue;
             };
 
-            let union = sets[i].union(&sets[j]).copied().collect();
+            let union = &sets[i] | &sets[j];
             sets[i] = union;
 
             skip.push(j);
@@ -75,7 +74,7 @@ fn merge_circuits(mut sets: Vec<HashSet<usize>>) -> Vec<HashSet<usize>> {
 fn part_one(dists: &[PointPair], n_max_pairs: usize) -> u64 {
     // Create circuits
     let &(i, j, _) = dists.first().unwrap();
-    let mut circuits = vec![HashSet::from([i, j])];
+    let mut circuits = vec![BTreeSet::from([i, j])];
 
     for (i, j, _) in dists.iter().skip(1).take(n_max_pairs - 1) {
         let mut inserted = false;
@@ -90,7 +89,7 @@ fn part_one(dists: &[PointPair], n_max_pairs: usize) -> u64 {
         }
 
         if !inserted {
-            circuits.push(HashSet::from([*i, *j]));
+            circuits.push(BTreeSet::from([*i, *j]));
         }
     }
 
@@ -111,10 +110,13 @@ fn part_one(dists: &[PointPair], n_max_pairs: usize) -> u64 {
         .product::<usize>() as u64
 }
 
-// TODO: this is extremely slow, it takes ~13 seconds
+// TODO: this is extremely slow
+// - With HashSet it takes ~13 seconds
+// - BTreeSet makes it go down to ~6 seconds
+// - merge_circuits is the bottleneck
 fn part_two(points: &[Point], dists: &[PointPair]) -> u64 {
     let &(i, j, _) = dists.first().unwrap();
-    let mut circuits = vec![HashSet::from([i, j])];
+    let mut circuits = vec![BTreeSet::from([i, j])];
 
     for (i, j, _) in dists.iter().skip(1) {
         let mut inserted = false;
@@ -130,12 +132,8 @@ fn part_two(points: &[Point], dists: &[PointPair]) -> u64 {
         }
 
         if !inserted {
-            circuits.push(HashSet::from([*i, *j]));
-        }
-
-        let mut prev_len = 0;
-        while prev_len != circuits.len() {
-            prev_len = circuits.len();
+            circuits.push(BTreeSet::from([*i, *j]));
+        } else {
             circuits = merge_circuits(circuits);
         }
 
