@@ -1,5 +1,6 @@
 use std::{collections::HashSet, fs::read_to_string};
 
+type PointPair = (usize, usize, f32);
 struct Point([f32; 3]);
 
 impl Point {
@@ -11,6 +12,38 @@ impl Point {
             .sum::<f32>()
             .sqrt()
     }
+}
+
+fn parse_points(input: &str) -> Vec<Point> {
+    input
+        .lines()
+        .map(|line| {
+            let coords = line
+                .split(',')
+                .map(|coord| coord.parse().unwrap())
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap();
+
+            Point(coords)
+        })
+        .collect()
+}
+
+fn compute_distances(points: &[Point]) -> Vec<PointPair> {
+    // Compute distances
+    let mut dists = Vec::with_capacity(points.len() - 1);
+    for i in 0..points.len() {
+        for j in i + 1..points.len() {
+            let dist = points[i].distance(&points[j]);
+            dists.push((i, j, dist));
+        }
+    }
+
+    // Sort by distance
+    dists.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+
+    dists
 }
 
 fn merge_circuits(mut sets: Vec<HashSet<usize>>) -> Vec<HashSet<usize>> {
@@ -39,42 +72,7 @@ fn merge_circuits(mut sets: Vec<HashSet<usize>>) -> Vec<HashSet<usize>> {
         .collect()
 }
 
-fn parse_points(input: &str) -> Vec<Point> {
-    input
-        .lines()
-        .map(|line| {
-            let coords = line
-                .split(',')
-                .map(|coord| coord.parse().unwrap())
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap();
-
-            Point(coords)
-        })
-        .collect()
-}
-
-fn compute_distances(points: Vec<Point>) -> Vec<(usize, usize, f32)> {
-    // Compute distances
-    let mut dists = Vec::with_capacity(points.len() - 1);
-    for i in 0..points.len() {
-        for j in i + 1..points.len() {
-            let dist = points[i].distance(&points[j]);
-            dists.push((i, j, dist));
-        }
-    }
-
-    // Sort by distance
-    dists.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
-
-    dists
-}
-
-fn part_one(input: &str, n_max_pairs: usize) -> u64 {
-    let points = parse_points(input);
-    let dists = compute_distances(points);
-
+fn part_one(dists: &[PointPair], n_max_pairs: usize) -> u64 {
     // Create circuits
     let &(i, j, _) = dists.first().unwrap();
     let mut circuits = vec![HashSet::from([i, j])];
@@ -113,45 +111,57 @@ fn part_one(input: &str, n_max_pairs: usize) -> u64 {
         .product::<usize>() as u64
 }
 
-fn part_two(input: &str) -> u64 {
-    let points = parse_points(input);
-    let dists = compute_distances(points);
-
-    // Create circuits
+// TODO: this is extremely slow, it takes ~13 seconds
+fn part_two(points: &[Point], dists: &[PointPair]) -> u64 {
     let &(i, j, _) = dists.first().unwrap();
     let mut circuits = vec![HashSet::from([i, j])];
 
     for (i, j, _) in dists.iter().skip(1) {
-        let mut inserted = Vec::new();
-        for (n, circuit) in circuits.iter_mut().enumerate() {
+        let mut inserted = false;
+
+        for circuit in circuits.iter_mut() {
             if circuit.contains(i) {
                 circuit.insert(*j);
-                inserted.push(n);
+                inserted = true;
             } else if circuit.contains(j) {
                 circuit.insert(*i);
-                inserted.push(n);
+                inserted = true;
             }
         }
 
-        if inserted.len() > 1 {
-            for n in inserted {}
-        }
-
-        if inserted.is_empty() {
+        if !inserted {
             circuits.push(HashSet::from([*i, *j]));
         }
+
+        let mut prev_len = 0;
+        while prev_len != circuits.len() {
+            prev_len = circuits.len();
+            circuits = merge_circuits(circuits);
+        }
+
+        // Check if all boxes are connected
+        if circuits.first().unwrap().len() == points.len() {
+            let x_0 = points[*i].0[0] as u64;
+            let x_1 = points[*j].0[0] as u64;
+            return x_0 * x_1;
+        }
     }
-    todo!()
+
+    0
 }
 
 fn main() {
     let input = read_to_string("inputs/day_08.txt").unwrap();
+    let points = parse_points(&input);
+    let dists = compute_distances(&points);
 
-    let solution = part_one(&input, 1000);
+    let solution = part_one(&dists, 1000);
     println!("Part one solution is {solution}");
 
-    // let solution = part_two();
-    // println!("Part two solution is {solution}");
+    let solution = part_two(&points, &dists);
+    println!("Part two solution is {solution}");
+
+    assert!(solution > 673096640)
 }
 
 #[cfg(test)]
@@ -182,7 +192,9 @@ mod tests {
     #[test]
     fn test_part_one() {
         let expected = 40;
-        let result = part_one(INPUT, 10);
+        let points = parse_points(INPUT);
+        let dists = compute_distances(&points);
+        let result = part_one(&dists, 10);
 
         assert_eq!(result, expected)
     }
@@ -190,7 +202,9 @@ mod tests {
     #[test]
     fn test_part_two() {
         let expected = 25272;
-        let result = part_two();
+        let points = parse_points(INPUT);
+        let dists = compute_distances(&points);
+        let result = part_two(&points, &dists);
 
         assert_eq!(result, expected)
     }
